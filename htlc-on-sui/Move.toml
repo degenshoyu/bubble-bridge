@@ -1,0 +1,8 @@
+[package]
+name = "HTLC"
+version = "0.0.1"
+published-at = "0x0"
+edition = "2024"
+
+[addresses]
+htlc = "0x0"

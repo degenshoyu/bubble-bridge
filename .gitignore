@@ -1,0 +1,25 @@
+# 📦 Node.js dependencies
+node_modules/
+package-lock.json
+
+# 🔐 Environment variables
+.env
+
+# 🧠 TypeScript build info
+*.tsbuildinfo
+
+# 🧪 Test coverage reports
+coverage/
+
+# 🔧 Build output folders
+dist/
+build/
+
+# 📂 HTLC deployment artifacts
+deployments/
+
+# 💻 IDE/editor files
+.vscode/
+*.log
+*.swp
+.DS_Store
