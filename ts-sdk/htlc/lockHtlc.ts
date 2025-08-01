@@ -1,20 +1,17 @@
-import { loadKeypairFromEnv } from "../utils/loadSigner";
+import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
 import { getLatestDeploy } from "../utils/deployments";
 import { checkBalance } from "../utils/checkBalance";
 import { genHashLock } from "../utils/genHashLock";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui.js/client";
 import { fromB64, normalizeSuiAddress } from "@mysten/sui.js/utils";
-import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import * as fs from "fs";
 import * as path from "path";
 import "dotenv/config";
 
 async function main() {
-  // Step 1: Load signer from .env
-  const priv = process.env.SUI_PRIVKEY;
-  if (!priv) throw new Error("Missing SUI_PRIVKEY in .env");
-  const signer = loadKeypairFromEnv();
+  // Step 1: Load signer
+  const signer = loadKeypairFromEnvVar("LOCKER_PRIVKEY");
   console.log("🔑 Using signer address:", signer.getPublicKey().toSuiAddress());
 
   const client = new SuiClient({ url: getFullnodeUrl("testnet") });
@@ -54,7 +51,7 @@ async function main() {
       tx.pure(recipient),
       coinInput,
       tx.pure(amount),
-      tx.pure(Array.from(hashHex)),
+      tx.pure(hashHex, "vector<u8>"),
       tx.pure(timelock),
     ],
   });
@@ -80,7 +77,7 @@ async function main() {
   console.log("🆕 Created objects:", createdObjects);
 
   console.log("✅ HTLC lock success!");
-  console.log("🔐 Secret:", Buffer.from(secret).toString("hex"));
+  console.log("🔐 Secret:", secret);
   console.log("🧩 HashLock:", hashHex);
   console.log("📦 Package:", packageId);
   console.log("🔗 Tx Digest:", result.digest);
@@ -105,8 +102,8 @@ async function main() {
   fs.writeFileSync(
     outputPath,
     safeStringify({
-      secret: Buffer.from(secret).toString("hex"),
-      hashlock: hashHex,
+      secret: secret,
+      hashlock: Array.from(hashHex),
       packageId,
       htlcId,
       digest: result.digest,

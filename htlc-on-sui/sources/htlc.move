@@ -60,8 +60,7 @@ module htlc::swap {
         assert!(swap.recipient == recipient, 101);
 
         // Compute the hash of the provided secret
-        let computed_hash: vector<u8> = hash::sha3_256(secret);
-
+        let computed_hash: vector<u8> = hash::sha2_256(secret);
 
         // Ensure the hash matches the original hashlock
         assert!(computed_hash == swap.hashlock, 102);

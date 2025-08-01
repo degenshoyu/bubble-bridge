@@ -1,0 +1,54 @@
+import { TransactionBlock } from "@mysten/sui.js/transactions";
+import { getFullnodeUrl, SuiClient } from "@mysten/sui.js/client";
+import { fromHEX } from "@mysten/sui.js/utils";
+import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
+import { getLatestHtlcInfo } from "../utils/getLatestHtlcInfo";
+import dotenv from "dotenv";
+
+dotenv.config();
+
+async function main() {
+  const { packageId, htlcId: swapId, secret: secretHex } = getLatestHtlcInfo();
+
+  if (!swapId || !secretHex) {
+    console.error("Usage: ts-node claimHtlc.ts <swapId> <secretHex>");
+    process.exit(1);
+  }
+
+  const secretBytes = Array.from(fromHEX(secretHex));
+  const claimer = loadKeypairFromEnvVar("CLAIMER_PRIVKEY");
+  const address = claimer.toSuiAddress();
+  const client = new SuiClient({ url: getFullnodeUrl("testnet") });
+
+  console.log("🔑 Loaded claimer address:", address);
+  console.log("🔁 Claiming HTLC:", swapId);
+  console.log("🧩 Using secret:", secretHex);
+
+  const tx = new TransactionBlock();
+  tx.setGasBudget(10_000_000);
+
+  const coin = tx.moveCall({
+    target: `${packageId}::swap::claim`,
+    typeArguments: ["0x2::sui::SUI"],
+    arguments: [tx.object(swapId), tx.pure(address), tx.pure(secretBytes)],
+  });
+
+  tx.transferObjects([coin], tx.pure(address));
+
+  const result = await client.signAndExecuteTransactionBlock({
+    transactionBlock: tx,
+    signer: claimer,
+    options: {
+      showEffects: true,
+      showInput: true,
+    },
+  });
+
+  console.log("✅ Claim success!");
+  console.log("🔗 Tx Digest:", result.digest);
+}
+
+main().catch((e) => {
+  console.error("❌ Error:", e);
+  process.exit(1);
+});

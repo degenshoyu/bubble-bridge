@@ -9,8 +9,14 @@ import { createHash, randomBytes } from "crypto";
  */
 export function genHashLock() {
   const secret = randomBytes(32).toString("hex");
-  const hashBuffer = createHash("sha256").update(secret).digest();
-  const hashLock = new Uint8Array(hashBuffer);
+  const secretBytes = Buffer.from(secret, "hex");
+  const hashBuffer = createHash("sha256").update(secretBytes).digest();
+  const hashLock = Array.from(hashBuffer);
+
+  console.log("🔐 Secret (hex):", secret);
+  console.log("📦 Secret Bytes:", [...secretBytes]);
+  console.log("🧩 HashLock:", [...hashLock]);
+
   return {
     secret,
     hashLock,
