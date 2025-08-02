@@ -90,7 +90,7 @@ module htlc::swap {
         clock: &Clock,
         ctx: &TxContext
     ): Coin<T> {
-        let current_time = clock::timestamp_ms(clock);
+        let current_time = clock::timestamp_ms(clock) / 1000;
         let sender_addr = sender(ctx);
 
         assert!(!swap.claimed, 200);
