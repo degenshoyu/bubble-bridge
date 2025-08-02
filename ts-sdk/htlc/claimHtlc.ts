@@ -12,9 +12,23 @@ import { createHash } from "crypto";
 import dotenv from "dotenv";
 dotenv.config();
 
+const info = getLatestHtlcInfo();
+const { packageId, htlcId: SWAP_OBJECT_ID, secret: rawSecret, coinType } = info;
+
+function parseHtlcError(errorMsg: string | undefined): string | null {
+  if (!errorMsg) return null;
+
+  if (errorMsg.includes("error_code: 100"))
+    return "❌ Secret does not match hashlock.";
+  if (errorMsg.includes("error_code: 101"))
+    return "❌ You are not the designated recipient.";
+  if (errorMsg.includes("error_code: 102"))
+    return "❌ This HTLC has already been claimed.";
+  return null;
+}
+
 async function main() {
-  const info = getLatestHtlcInfo();
-  const secret = Buffer.from(info.secret, "hex");
+  const secret = Buffer.from(rawSecret, "hex");
   const secretArray = Array.from(secret);
 
   const keypair = loadKeypairFromEnvVar("CLAIMER_PRIVKEY");
@@ -22,8 +36,8 @@ async function main() {
   const address = keypair.getPublicKey().toSuiAddress();
 
   console.log("🔐 Claimer Address:", address);
-  console.log("🔁 Claiming HTLC:", info.htlcId);
-  console.log("🧩 JSON Secret:", info.secret);
+  console.log("🔁 Claiming HTLC:", SWAP_OBJECT_ID);
+  console.log("🧩 JSON Secret:", rawSecret);
   console.log(" Onchain Secret", secretArray);
 
   const hash = createHash("sha256").update(secret).digest();
@@ -34,10 +48,10 @@ async function main() {
   tx.setGasBudget(10_000_000);
 
   const coins = tx.moveCall({
-    target: `${info.packageId}::swap::claim`,
+    target: `${packageId}::swap::claim`,
     typeArguments: ["0x2::sui::SUI"],
     arguments: [
-      tx.object(info.htlcId),
+      tx.object(SWAP_OBJECT_ID),
       tx.pure(address),
       tx.pure(secretArray, "vector<u8>"),
     ],
@@ -61,8 +75,23 @@ async function main() {
     },
   });
 
-  console.log("✅ Claim successful!");
-  console.log("🔗 Tx Digest:", result.digest);
+  const status = result.effects?.status.status;
+  const error = result.effects?.status.error;
+  const digest = result.digest;
+
+  if (status === "success") {
+    console.log("✅ Claim successful!");
+    console.log("🔗 Tx Digest:", digest);
+  } else {
+    console.log("❌ Claim failed!");
+    console.log("🔗 Tx Digest:", digest);
+    console.log("🧾 Reason:", error ?? "Unknown error");
+
+    const explanation = parseHtlcError(error);
+    if (explanation) {
+      console.log(explanation);
+    }
+  }
 
   const unwrapped = result.effects?.unwrapped;
   if (unwrapped?.length) {
