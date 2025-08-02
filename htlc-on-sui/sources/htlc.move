@@ -3,11 +3,13 @@ module htlc::swap {
     use sui::tx_context::sender;
     use std::hash;
     use sui::object::{delete, new};
+    use sui::clock::Clock;
+    use sui::clock;
 
     const EInsufficientAmount: u64 = 0;
     /// const EAlreadyClaimed: u64 = 1;
     /// const EInvalidPreimage: u64 = 2;
-    /// const ETooEarlyToRefund: u64 = 3;
+    /// const ETooEarlyToRefud: u64 = 3;
 
     #[allow(lint(coin_field))]
     public struct Swap<phantom T> has key {
@@ -85,13 +87,15 @@ module htlc::swap {
     /// Refund the locked token back to the sender if timelock has expired
     public fun refund<T>(
         swap: Swap<T>,
-        current_time: u64
+        clock: &Clock,
+        ctx: &TxContext
     ): Coin<T> {
-        // Ensure the swap has not been claimed
-        assert!(!swap.claimed, 200);
+        let current_time = clock::timestamp_ms(clock);
+        let sender_addr = sender(ctx);
 
-        // Ensure timelock has expired
+        assert!(!swap.claimed, 200);
         assert!(current_time >= swap.timelock, 201);
+        assert!(sender_addr == swap.sender, 202);
 
         // Destructure and extract coin + consume UID
         let Swap {
