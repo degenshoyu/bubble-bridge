@@ -1,5 +1,6 @@
 // ts-sdk/utils/loadKeypair.ts
 
+import { Wallet } from "ethers";
 import { decodeSuiPrivateKey } from "@mysten/sui.js/cryptography";
 import { Ed25519Keypair } from "@mysten/sui.js/keypairs/ed25519";
 import { Secp256r1Keypair } from "@mysten/sui.js/keypairs/secp256r1";
@@ -24,4 +25,13 @@ export function loadKeypairFromEnvVar(envVarName: string): Keypair {
     default:
       throw new Error(`Unsupported key type: ${schema}`);
   }
+}
+
+/**
+ * Load an EVM signer Wallet from an env variable like EVM_LOCKER_PRIVKEY.
+ */
+export function loadEvmPrivateKey(envVarName: string): Wallet {
+  const priv = process.env[envVarName];
+  if (!priv) throw new Error(`Missing ${envVarName} in .env`);
+  return new Wallet(priv);
 }

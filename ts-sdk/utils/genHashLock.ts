@@ -14,7 +14,6 @@ export function genHashLock() {
   const hashLock = Array.from(hashBuffer);
 
   console.log("🔐 Secret (hex):", secret);
-  console.log("📦 Secret Bytes:", [...secretBytes]);
   console.log("🧩 HashLock:", [...hashLock]);
 
   return {
