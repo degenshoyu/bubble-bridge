@@ -47,9 +47,13 @@ async function main() {
   const tx = new TransactionBlock();
   tx.setGasBudget(10_000_000);
 
+  if (!coinType) {
+    throw new Error("❌ coinType is missing");
+  }
+
   const coins = tx.moveCall({
     target: `${packageId}::swap::claim`,
-    typeArguments: ["0x2::sui::SUI"],
+    typeArguments: [coinType],
     arguments: [
       tx.object(SWAP_OBJECT_ID),
       tx.pure(address),
@@ -109,6 +113,7 @@ async function main() {
       const balance = (fields as any)["balance"];
       console.log(`🪙 Returned Coin ID: ${coinObjectId}`);
       console.log(`💰 Returned Coin Balance: ${balance}`);
+      console.log(`🧾 Coin Type: ${coinType}`);
     } else {
       console.log("⚠️ Unexpected content format:", content);
     }

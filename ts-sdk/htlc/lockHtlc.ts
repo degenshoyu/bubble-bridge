@@ -34,8 +34,10 @@ async function main() {
   const { secret, hashLock } = genHashLock();
   const hashHex = hashLock;
 
-  // Step 6: Set timelock (current time + 1 day)
-  const timelock = Math.floor(Date.now() / 1000) + 86400;
+  // Step 6: Set timelock
+  const now = Math.floor(Date.now() / 1000);
+  const lockDuration = 5 * 60;
+  const timelock = now + lockDuration;
 
   // Step 7: Build programmable tx
   const tx = new TransactionBlock();
