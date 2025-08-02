@@ -1,5 +1,9 @@
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { getFullnodeUrl, SuiClient } from "@mysten/sui.js/client";
+import {
+  getFullnodeUrl,
+  SuiClient,
+  SuiMoveObject,
+} from "@mysten/sui.js/client";
 import { fromHEX } from "@mysten/sui.js/utils";
 import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
 import { getLatestHtlcInfo } from "../utils/getLatestHtlcInfo";
@@ -36,13 +40,10 @@ async function main() {
       tx.object(info.htlcId),
       tx.pure(address),
       tx.pure(secretArray, "vector<u8>"),
-      // tx.pure([...secretBytes], "vector<u8>"),
     ],
   });
 
   const claimedCoin = coins[0];
-
-  console.log("🔍 claimedCoin =", claimedCoin);
 
   if (claimedCoin) {
     tx.transferObjects([claimedCoin], tx.pure(address));
@@ -53,6 +54,7 @@ async function main() {
   const result = await client.signAndExecuteTransactionBlock({
     signer: keypair,
     transactionBlock: tx,
+    requestType: "WaitForLocalExecution",
     options: {
       showEffects: true,
       showObjectChanges: true,
@@ -61,10 +63,29 @@ async function main() {
 
   console.log("✅ Claim successful!");
   console.log("🔗 Tx Digest:", result.digest);
-  console.log(
-    "🪙 Returned coin:",
-    result.objectChanges?.find((c) => c.type === "created")?.objectId,
-  );
+
+  const unwrapped = result.effects?.unwrapped;
+  if (unwrapped?.length) {
+    const coinObjectId = unwrapped[0].reference.objectId;
+    const coinInfo = await client.getObject({
+      id: coinObjectId,
+      options: {
+        showContent: true,
+      },
+    });
+
+    const content = coinInfo.data?.content;
+    if (content && typeof content === "object" && "fields" in content) {
+      const fields = (content as SuiMoveObject).fields;
+      const balance = (fields as any)["balance"];
+      console.log(`🪙 Returned Coin ID: ${coinObjectId}`);
+      console.log(`💰 Returned Coin Balance: ${balance}`);
+    } else {
+      console.log("⚠️ Unexpected content format:", content);
+    }
+  } else {
+    console.log("🌐 No coin unwrapped.");
+  }
 }
 
 main().catch((e) => {
