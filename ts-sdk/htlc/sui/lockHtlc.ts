@@ -1,7 +1,7 @@
-import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
-import { getLatestDeploy } from "../utils/deployments";
-import { checkBalance } from "../utils/checkBalance";
-import { genHashLock } from "../utils/genHashLock";
+import { loadKeypairFromEnvVar } from "../../utils/loadKeypair";
+import { getLatestDeploy } from "../../utils/deployments";
+import { checkBalance } from "../../utils/checkBalance";
+import { genHashLock } from "../../utils/genHashLock";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
 import { getFullnodeUrl, SuiClient } from "@mysten/sui.js/client";
 import { fromB64, normalizeSuiAddress } from "@mysten/sui.js/utils";
@@ -41,10 +41,9 @@ async function main() {
 
   // Step 7: Build programmable tx
   const tx = new TransactionBlock();
-  tx.setGasBudget(10_000_000);
-  const [coinInput] = tx.splitCoins(tx.object(coin.coinObjectId), [
-    tx.pure(amount),
-  ]);
+  tx.setGasBudget(10_000_000n);
+
+  const [coinInput] = tx.splitCoins(tx.gas, [tx.pure(amount)]);
 
   tx.moveCall({
     target: `${packageId}::swap::init_swap`,
@@ -67,14 +66,14 @@ async function main() {
 
   const htlcId = (
     result.objectChanges?.find(
-      (c) => c.type === "created" && c.objectType?.includes("swap::Swap"),
+      (c) => c.type === "created" && c.objectType?.includes("swap::Swap")
     ) as any
   )?.objectId;
 
   console.log("🔁 HTLC ID:", htlcId || "Not found");
 
   const createdObjects = result.objectChanges?.filter(
-    (o) => o.type === "created",
+    (o) => o.type === "created"
   );
   console.log("🆕 Created objects:", createdObjects);
 
@@ -89,14 +88,14 @@ async function main() {
     return JSON.stringify(
       obj,
       (_, v) => (typeof v === "bigint" ? v.toString() : v),
-      2,
+      2
     );
   }
 
   console.log(safeStringify(result));
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const outputDir = path.resolve(__dirname, "../../deployments/htlc-locks");
+  const outputDir = path.resolve(__dirname, "../../../deployments/htlc-locks");
   fs.mkdirSync(outputDir, { recursive: true });
 
   const outputPath = path.join(outputDir, `${timestamp}.json`);
@@ -114,7 +113,7 @@ async function main() {
       recipient,
       coinType,
       timelock,
-    }),
+    })
   );
 
   console.log("💾 HTLC data saved to:", outputPath);

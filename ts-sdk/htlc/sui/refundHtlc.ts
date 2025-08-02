@@ -1,8 +1,8 @@
 import "dotenv/config";
 import { SuiClient, getFullnodeUrl } from "@mysten/sui.js/client";
 import { TransactionBlock } from "@mysten/sui.js/transactions";
-import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
-import { getLatestHtlcInfo } from "../utils/getLatestHtlcInfo";
+import { loadKeypairFromEnvVar } from "../../utils/loadKeypair";
+import { getLatestHtlcInfo } from "../../utils/getLatestHtlcInfo";
 
 import dotenv from "dotenv";
 dotenv.config();

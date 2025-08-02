@@ -1,0 +1,104 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IERC20 {
+    function transferFrom(address sender, address recipient, uint256 amount) external returns (bool);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+}
+
+contract HtlcUnified {
+    struct Swap {
+        address sender;
+        address recipient;
+        address token;
+        uint256 amount;
+        bytes32 hashlock;
+        uint256 timelock;
+        bool claimed;
+        bool isEth;
+    }
+
+    mapping(bytes32 => Swap) public swaps;
+
+    event Locked(bytes32 indexed swapId, address indexed sender, address recipient, address token, uint256 amount, bool isEth);
+    event Claimed(bytes32 indexed swapId, bytes secret);
+    event Refunded(bytes32 indexed swapId);
+
+    function lock(
+        address recipient,
+        address token,
+        uint256 amount,
+        bytes32 hashlock,
+        uint256 timelock
+    ) external payable returns (bytes32) {
+        require(timelock > block.timestamp, "Timelock must be in the future");
+
+        bool isEth = token == address(0);
+        uint256 value = isEth ? msg.value : amount;
+        require(value > 0, "Amount must be > 0");
+
+        if (!isEth) {
+            IERC20(token).transferFrom(msg.sender, address(this), amount);
+        }
+
+        bytes32 swapId = keccak256(
+            abi.encodePacked(msg.sender, recipient, token, value, hashlock, timelock, block.timestamp)
+        );
+
+        require(swaps[swapId].sender == address(0), "Swap already exists");
+
+        swaps[swapId] = Swap({
+            sender: msg.sender,
+            recipient: recipient,
+            token: token,
+            amount: value,
+            hashlock: hashlock,
+            timelock: timelock,
+            claimed: false,
+            isEth: isEth
+        });
+
+        emit Locked(swapId, msg.sender, recipient, token, value, isEth);
+        return swapId;
+    }
+
+    function claim(bytes32 swapId, bytes calldata secret) external {
+        Swap storage s = swaps[swapId];
+        require(s.sender != address(0), "Swap not found");
+        require(!s.claimed, "Already claimed");
+        require(msg.sender == s.recipient, "Not recipient");
+        require(sha256(secret) == s.hashlock, "Invalid secret");
+
+        s.claimed = true;
+
+        if (s.isEth) {
+            (bool success, ) = s.recipient.call{value: s.amount}("");
+            require(success, "ETH transfer failed");
+        } else {
+            IERC20(s.token).transfer(s.recipient, s.amount);
+        }
+
+        emit Claimed(swapId, secret);
+    }
+
+    function refund(bytes32 swapId) external {
+        Swap storage s = swaps[swapId];
+        require(s.sender != address(0), "Swap not found");
+        require(!s.claimed, "Already claimed");
+        require(block.timestamp > s.timelock, "Timelock not expired");
+        require(msg.sender == s.sender, "Not sender");
+
+        delete swaps[swapId];
+
+        if (s.isEth) {
+            (bool success, ) = s.sender.call{value: s.amount}("");
+            require(success, "ETH refund failed");
+        } else {
+            IERC20(s.token).transfer(s.sender, s.amount);
+        }
+
+        emit Refunded(swapId);
+    }
+
+    receive() external payable {}
+}

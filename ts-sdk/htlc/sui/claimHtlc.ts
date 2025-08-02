@@ -5,8 +5,8 @@ import {
   SuiMoveObject,
 } from "@mysten/sui.js/client";
 import { fromHEX } from "@mysten/sui.js/utils";
-import { loadKeypairFromEnvVar } from "../utils/loadKeypair";
-import { getLatestHtlcInfo } from "../utils/getLatestHtlcInfo";
+import { loadKeypairFromEnvVar } from "../../utils/loadKeypair";
+import { getLatestHtlcInfo } from "../../utils/getLatestHtlcInfo";
 import { createHash } from "crypto";
 
 import dotenv from "dotenv";
