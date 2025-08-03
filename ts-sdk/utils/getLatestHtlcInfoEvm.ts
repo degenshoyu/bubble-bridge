@@ -19,9 +19,7 @@ export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
   const htlcDir = path.resolve(__dirname, "../../deployments/htlc-locks-evm");
   console.log("📂 EVM HTLC directory being scanned:", htlcDir);
 
-  const files = fs
-    .readdirSync(htlcDir)
-    .filter((f) => f.endsWith(".json") && !f.startsWith("responder-"));
+  const files = fs.readdirSync(htlcDir).filter((f) => f.endsWith(".json"));
 
   if (files.length === 0) {
     throw new Error("No HTLC lock files found in EVM directory.");
@@ -48,7 +46,7 @@ export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
     const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     console.log("📋 Parsed JSON data:", data);
 
-    if (data.swapId && data.secret) {
+    if (data.swapId) {
       let hashlock = data.hashlock;
       if (data.hashlock?.type === "Buffer" && data.hashlock.data) {
         hashlock = "0x" + Buffer.from(data.hashlock.data).toString("hex");
@@ -69,5 +67,7 @@ export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
     }
   }
 
-  throw new Error("No valid EVM HTLC lock file found with required fields.");
+  throw new Error(
+    "No valid EVM HTLC lock file found with required fields (swapId)."
+  );
 }
