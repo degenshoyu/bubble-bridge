@@ -4,6 +4,7 @@ import path from "path";
 export interface EvmHtlcMetadata {
   secret: string;
   hashlock: string;
+  swapId: string;
   recipient?: string;
   token?: string;
   amount?: string;
@@ -29,13 +30,16 @@ export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
   const latestPath = path.join(htlcDir, files[0]);
   const data = JSON.parse(fs.readFileSync(latestPath, "utf-8"));
 
-  if (!data.secret || !data.hashlock) {
-    throw new Error("Invalid HTLC lock file: missing 'secret' or 'hashlock'.");
+  if (!data.secret || !data.hashLock || !data.swapId) {
+    throw new Error(
+      "Invalid HTLC lock file: missing required fields (secret, hashLock, swapId)."
+    );
   }
 
   return {
     secret: data.secret,
-    hashlock: data.hashlock,
+    hashlock: data.hashLock,
+    swapId: data.swapId,
     recipient: data.recipient,
     token: data.token,
     amount: data.amount,
@@ -46,4 +50,3 @@ export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
     sourceFile: files[0],
   };
 }
-

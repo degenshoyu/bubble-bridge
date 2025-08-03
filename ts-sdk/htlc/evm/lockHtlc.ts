@@ -1,8 +1,19 @@
 import "dotenv/config";
-import { parseUnits, JsonRpcProvider, Wallet, Contract } from "ethers";
+import { arrayify } from "@ethersproject/bytes";
+import {
+  hexlify,
+  Log,
+  Interface,
+  parseUnits,
+  JsonRpcProvider,
+  Wallet,
+  Contract,
+  keccak256,
+  solidityPacked,
+} from "ethers";
 import { getLatestEvmDeployment } from "../../utils/deployments-evm";
 import { loadEvmPrivateKey } from "../../utils/loadKeypair";
-import { genHashLockForEvm } from "../../utils/evmLockHelper";
+import { genHashLock } from "../../utils/genHashLock";
 import fs from "fs";
 import path from "path";
 
@@ -33,7 +44,8 @@ async function main() {
   const { contractAddress, abi } = getLatestEvmDeployment();
   const contract = new Contract(contractAddress, abi, signer);
 
-  const { secretHex, hashLock } = genHashLockForEvm();
+  const { secret, secretHex, hashLock } = genHashLock();
+
   const timelock = Math.floor(Date.now() / 1000) + 5 * 60;
 
   console.log("🔑 Secret:", secretHex);
@@ -41,22 +53,43 @@ async function main() {
 
   if (tokenAddressOrETH.toUpperCase() === "ETH") {
     const tokenAddress = "0x0000000000000000000000000000000000000000";
-    const tx = await contract.lock(
-      recipient,
-      tokenAddress,
-      amount,
-      hashLock,
-      timelock,
-      {
-        value: amount,
-      }
-    );
+    const tx = await contract.lock(recipient, hashLock, timelock, {
+      value: amount,
+      gasLimit: 500_000n,
+    });
     console.log("🚀 Sent lock tx:", tx.hash);
-    await tx.wait();
+    const receipt = await tx.wait();
+
+    if (receipt.status === 0) {
+      console.error("Transaction Failed:", receipt);
+      process.exit(1);
+    }
+
+    console.log("Transaction Data:", receipt);
+    console.log("Log:", receipt.logs);
+
+    const log = receipt.logs.find((log: Log) => {
+      try {
+        contract.interface.parseLog(log);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+
+    if (!log) {
+      throw new Error("❌ Failed to find Locked event log");
+    }
+
+    const parsedLog = contract.interface.parseLog(log);
+    const swapId = parsedLog!.args.swapId;
+
+    console.log("🔁 Emitted swapId from chain:", swapId);
 
     const lockInfo = {
       secret: secretHex,
       hashLock,
+      swapId,
       recipient,
       token: tokenAddressOrETH,
       amount: amount.toString(),
@@ -92,7 +125,8 @@ async function main() {
       tokenAddress,
       amount,
       hashLock,
-      timelock
+      timelock,
+      arrayify(secretHex)
     );
     console.log("🚀 Sent lockToken tx:", tx.hash);
     await tx.wait();

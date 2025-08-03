@@ -8,6 +8,7 @@ import { fromB64, normalizeSuiAddress } from "@mysten/sui.js/utils";
 import * as fs from "fs";
 import * as path from "path";
 import "dotenv/config";
+import { bcs } from "@mysten/bcs";
 
 async function main() {
   // Step 1: Load signer
@@ -32,7 +33,10 @@ async function main() {
 
   // Step 5: Generate secret + hashlock
   const { secret, hashLock } = genHashLock();
-  const hashHex = hashLock;
+
+  if (!(hashLock instanceof Uint8Array)) {
+    throw new Error("hashLock is not a Uint8Array");
+  }
 
   // Step 6: Set timelock
   const now = Math.floor(Date.now() / 1000);
@@ -52,7 +56,7 @@ async function main() {
       tx.pure(recipient),
       coinInput,
       tx.pure(amount),
-      tx.pure(hashHex, "vector<u8>"),
+      tx.pure(bcs.vector(bcs.u8()).serialize(hashLock)),
       tx.pure(timelock),
     ],
   });
@@ -79,7 +83,7 @@ async function main() {
 
   console.log("✅ HTLC lock success!");
   console.log("🔐 Secret:", secret);
-  console.log("🧩 HashLock:", hashHex);
+  console.log("🧩 HashLock:", hashLock);
   console.log("📦 Package:", packageId);
   console.log("🔗 Tx Digest:", result.digest);
 
@@ -104,7 +108,7 @@ async function main() {
     outputPath,
     safeStringify({
       secret: secret,
-      hashlock: Array.from(hashHex),
+      hashlock: hashLock,
       packageId,
       htlcId,
       digest: result.digest,

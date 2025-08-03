@@ -1,6 +1,7 @@
 // utils/genHashLock.ts
 import crypto from "crypto";
 import { createHash, randomBytes } from "crypto";
+import { hexlify } from "ethers";
 
 /**
  * Generate a random secret and its SHA-256 hashlock.
@@ -11,13 +12,15 @@ export function genHashLock() {
   const secret = randomBytes(32).toString("hex");
   const secretBytes = Buffer.from(secret, "hex");
   const hashBuffer = createHash("sha256").update(secretBytes).digest();
-  const hashLock = Array.from(hashBuffer);
+  const hashLock = hashBuffer;
+  // const hashLock = Array.from(hashBuffer);
 
   console.log("🔐 Secret (hex):", secret);
   console.log("🧩 HashLock:", [...hashLock]);
 
   return {
     secret,
+    secretHex: hexlify(Buffer.from(secret, "hex")),
     hashLock,
   };
 }
