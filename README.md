@@ -91,7 +91,7 @@ npx ts-node ts-sdk/htlc/evm/claimHtlc.ts
 ```
 
 ## Notes
-# .env structure for testing, including a set of private keys for Sui wallets and EVM wallets for deploying, locking, and claiming.
+.env structure for testing, including a set of private keys for Sui wallets and EVM wallets for deploying, locking, and claiming.
 ```
 LOCKER_PRIVKEY=
 CLAIMER_PRIVKEY=
