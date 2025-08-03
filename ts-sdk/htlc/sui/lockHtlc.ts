@@ -40,7 +40,7 @@ async function main() {
 
   // Step 6: Set timelock
   const now = Math.floor(Date.now() / 1000);
-  const lockDuration = 5 * 60;
+  const lockDuration = 10 * 60;
   const timelock = now + lockDuration;
 
   // Step 7: Build programmable tx

@@ -46,7 +46,7 @@ async function main() {
 
   const { secret, secretHex, hashLock } = genHashLock();
 
-  const timelock = Math.floor(Date.now() / 1000) + 5 * 60;
+  const timelock = Math.floor(Date.now() / 1000) + 10 * 60;
 
   console.log("🔑 Secret:", secretHex);
   console.log("⏳ Timelock:", timelock);

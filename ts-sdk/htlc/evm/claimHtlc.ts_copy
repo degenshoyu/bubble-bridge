@@ -7,58 +7,29 @@ import { loadEvmPrivateKey } from "../../utils/loadKeypair";
 import path from "path";
 import fs from "fs";
 
-import { getSecretFromSuiClaimTx } from "../../utils/getSecretFromSuiClaimTx";
-import { getLatestSuiClaimInfo } from "../../utils/getLatestSuiClaimInfo";
-
 async function main() {
-  const [suiClaimTxDigest] = process.argv.slice(2);
-
   const evmInfo = getLatestHtlcInfoEvm();
   if (!evmInfo.swapId) {
     throw new Error("❌ Missing swapId in EVM lock JSON.");
   }
 
-  let rawSecret: string;
-  let secretSource: string;
-  let mode: string;
-  try {
-    if (evmInfo.secret) {
-      rawSecret = evmInfo.secret;
-      secretSource = `EVM JSON (${evmInfo.sourceFile})`;
-      mode = "Initiator (initiated on EVM)";
-    } else {
-      const suiInfo = getLatestHtlcInfo();
-      if (suiInfo.secret) {
-        rawSecret = suiInfo.secret;
-        secretSource = `Sui JSON (${suiInfo.sourceFile})`;
-        mode = "Initiator (initiated on Sui)";
-      } else if (suiClaimTxDigest) {
-        rawSecret = await getSecretFromSuiClaimTx(suiClaimTxDigest);
-        secretSource = `Sui claim transaction (${suiClaimTxDigest})`;
-        mode = "Responder (Sui claim tx)";
-      } else {
-        const suiClaimInfo = getLatestSuiClaimInfo();
-        rawSecret = suiClaimInfo.secret;
-        secretSource = `Sui claim JSON (${suiClaimInfo.sourceFile})`;
-        mode = "Responder (Sui claim JSON)";
-      }
-    }
-  } catch (e: any) {
-    console.error("❌ Failed to read secret:", e.message);
-    process.exit(1);
+  const suiInfo = getLatestHtlcInfo();
+  if (!suiInfo.secret) {
+    throw new Error("❌ Missing secret in Sui JSON.");
   }
 
   const { contractAddress, abi } = getLatestEvmDeployment();
   const provider = new ethers.JsonRpcProvider(process.env.EVM_SEPOLIA_RPC_URL);
   const signer = loadEvmPrivateKey("EVM_CLAIMER_PRIVKEY").connect(provider);
 
-  const secret = rawSecret.startsWith("0x") ? rawSecret.slice(2) : rawSecret;
+  const secret = suiInfo.secret.startsWith("0x")
+    ? suiInfo.secret.slice(2)
+    : suiInfo.secret;
 
-  console.log("🔐 Claimer Address:", await signer.getAddress());
-  console.log("🔄 Mode:", mode);
+  console.log("🔐 Initiator Claimer Address:", await signer.getAddress());
   console.log("📦 Claiming HTLC swapId:", evmInfo.swapId);
   console.log("🔑 Secret (hex):", secret);
-  console.log("🧾 Secret Source:", secretSource);
+  console.log("🧾 Secret Source: Sui JSON", suiInfo.sourceFile);
 
   const contract = new ethers.Contract(contractAddress, abi, signer);
 
@@ -81,7 +52,7 @@ async function main() {
     claimer: await signer.getAddress(),
     swapId: evmInfo.swapId,
     secret: "0x" + secret,
-    secretSource: secretSource,
+    sourceFile: evmInfo.sourceFile,
     timestamp: new Date().toISOString(),
   };
 
@@ -90,6 +61,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("❌ Claim failed:", err);
+  console.error("❌ Initiator claim failed:", err);
   process.exit(1);
 });

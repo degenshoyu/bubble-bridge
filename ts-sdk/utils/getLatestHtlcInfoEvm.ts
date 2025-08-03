@@ -2,8 +2,8 @@ import fs from "fs";
 import path from "path";
 
 export interface EvmHtlcMetadata {
-  secret: string;
-  hashlock: string;
+  secret?: string;
+  hashlock?: string;
   swapId: string;
   recipient?: string;
   token?: string;
@@ -17,36 +17,57 @@ export interface EvmHtlcMetadata {
 
 export function getLatestHtlcInfoEvm(): EvmHtlcMetadata {
   const htlcDir = path.resolve(__dirname, "../../deployments/htlc-locks-evm");
+  console.log("📂 EVM HTLC directory being scanned:", htlcDir);
+
   const files = fs
     .readdirSync(htlcDir)
-    .filter((f) => f.endsWith(".json") && f !== "latest.json")
-    .sort()
-    .reverse();
+    .filter((f) => f.endsWith(".json") && !f.startsWith("responder-"));
 
   if (files.length === 0) {
     throw new Error("No HTLC lock files found in EVM directory.");
   }
 
-  const latestPath = path.join(htlcDir, files[0]);
-  const data = JSON.parse(fs.readFileSync(latestPath, "utf-8"));
+  const filesWithMtime = files.map((f) => {
+    const filePath = path.join(htlcDir, f);
+    const stat = fs.statSync(filePath);
+    return { file: f, mtime: stat.mtimeMs };
+  });
 
-  if (!data.secret || !data.hashLock || !data.swapId) {
-    throw new Error(
-      "Invalid HTLC lock file: missing required fields (secret, hashLock, swapId)."
-    );
+  filesWithMtime.sort((a, b) => b.mtime - a.mtime);
+
+  const sortedFiles = filesWithMtime.map((f) => f.file);
+
+  console.log(
+    "📄 Found JSON files (sorted latest first by mtime):",
+    sortedFiles
+  );
+
+  for (const { file } of filesWithMtime) {
+    const filePath = path.join(htlcDir, file);
+    console.log("🔍 Reading JSON file:", filePath);
+    const data = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    console.log("📋 Parsed JSON data:", data);
+
+    if (data.swapId && data.secret) {
+      let hashlock = data.hashlock;
+      if (data.hashlock?.type === "Buffer" && data.hashlock.data) {
+        hashlock = "0x" + Buffer.from(data.hashlock.data).toString("hex");
+      }
+      return {
+        secret: data.secret,
+        hashlock,
+        swapId: data.swapId,
+        recipient: data.recipient,
+        token: data.token,
+        amount: data.amount,
+        timelock: data.timelock,
+        txHash: data.txHash,
+        locker: data.locker,
+        timestamp: data.timestamp || new Date().toISOString(),
+        sourceFile: file,
+      };
+    }
   }
 
-  return {
-    secret: data.secret,
-    hashlock: data.hashLock,
-    swapId: data.swapId,
-    recipient: data.recipient,
-    token: data.token,
-    amount: data.amount,
-    timelock: data.timelock,
-    txHash: data.txHash,
-    locker: data.locker,
-    timestamp: data.timestamp || new Date().toISOString(),
-    sourceFile: files[0],
-  };
+  throw new Error("No valid EVM HTLC lock file found with required fields.");
 }
